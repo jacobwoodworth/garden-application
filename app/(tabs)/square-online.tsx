@@ -480,7 +480,7 @@ const App: React.FC = () => {
         </View>
         <View style={styles.returnToMap}>
           <Button title="Exit"onPress={() => {
-      router.push('../maps/rindex.tsx'); // Assuming your file is 'index.tsx'
+       router.push('../map/index.tsx');
     } } />
         </View>
       </ImageBackground>
