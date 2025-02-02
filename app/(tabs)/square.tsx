@@ -37,21 +37,21 @@ const plantTypes = [
 ];
 
 const plantImages: { [key: string]: any } = {
-  Tomatoes: require('../../assets/tomatoes.png'),
-  Carrots: require('../../assets/carrots.png'),
-  Beets: require('../../assets/beets.png'),
-  Corn: require('../../assets/corn.png'),
-  Lettuce: require('../../assets/lettuce.png'),
-  Beans: require('../../assets/beans.png'),
-  Broccoli: require('../../assets/broccoli.png'),
-  Cucumbers: require('../../assets/cucumbers.png'),
-  Potatoes: require('../../assets/potatoes.png'),
-  Peanuts: require('../../assets/peanuts.png'),
-  Blackberries: require('../../assets/blackberries.png'),
-  Blueberries: require('../../assets/blueberries.png'),
-  Strawberries: require('../../assets/strawberries.png'),
-  Basil: require('../../assets/basil.png'),
-  Parsley: require('../../assets/parsley.png'),
+  Tomatoes: require('./assets/tomatoes.png'),
+  Carrots: require('./assets/carrots.png'),
+  Beets: require('./assets/beets.png'),
+  Corn: require('./assets/corn.png'),
+  Lettuce: require('./assets/lettuce.png'),
+  Beans: require('./assets/beans.png'),
+  Broccoli: require('./assets/broccoli.png'),
+  Cucumbers: require('./assets/cucumbers.png'),
+  Potatoes: require('./assets/potatoes.png'),
+  Peanuts: require('.//peanuts.png'),
+  Blackberries: require('./assets/blackberries.png'),
+  Blueberries: require('./assets/blueberries.png'),
+  Strawberries: require('./assets/strawberries.png'),
+  Basil: require('./assets/basil.png'),
+  Parsley: require('./assets/parsley.png'),
 };
 
 // Modify GridCell to include plant data.
@@ -147,7 +147,7 @@ const App: React.FC = () => {
             isBlack: !cell.isBlack,
             plantType: !cell.isBlack ? "empty" : undefined,
             plantName: !cell.isBlack ? "" : undefined,
-            datePlanted: !cell.isBlack ? new Date() : null,
+            datePlanted: null,
             wateredDate: null,
             harvestedDate: null,
           };
@@ -212,7 +212,7 @@ const App: React.FC = () => {
     const numCols = region.endCol - region.startCol + 1;
     return (
       // Wrap editor mode in an ImageBackground for the editor background
-      <ImageBackground source={require('../../assets/editorBackground.png')} style={styles.editorContainer}>
+      <ImageBackground source={require('./assets/editorBackground.png')} style={styles.editorContainer}>
         <Animated.View
           style={[
             {
@@ -238,8 +238,8 @@ const App: React.FC = () => {
                       <Image
                         source={
                           isBlack
-                            ? require('../../assets/dirt.png')
-                            : require('../../assets/grass.png')
+                            ? require('./assets/dirt.png')
+                            : require('./assets/grass.png')
                         }
                         style={{ width: EDITOR_CELL_SIZE, height: EDITOR_CELL_SIZE }}
                       />
@@ -269,7 +269,7 @@ const App: React.FC = () => {
 
     return (
       // Wrap main view in an ImageBackground for the main background.
-      <ImageBackground source={require('../../assets/mainBackground.png')} style={[styles.gardenContainer, { width: windowWidth, height: windowHeight }]}>
+      <ImageBackground source={require('./assets/mainBackground.png')} style={[styles.gardenContainer, { width: windowWidth, height: windowHeight }]}>
         <View
           style={{
             width: containerWidth,
@@ -296,7 +296,7 @@ const App: React.FC = () => {
                   >
                     <View style={{ width: cellSize, height: cellSize }}>
                       <Image
-                        source={require('../../assets/dirt.png')}
+                        source={require('./assets/dirt.png')}
                         style={{ width: cellSize, height: cellSize, position: 'absolute' }}
                       />
                       {cell.plantType && (
@@ -335,20 +335,11 @@ const App: React.FC = () => {
             <View style={styles.modalTopRow}>
               <Image
                 // If blockType is "Empty", show a question mark image.
-                source={
-                  blockType === "Empty"
-                    ? require('../../assets/question.png')
-                    : (plantImages[blockType] || require('../../assets/question.png'))
-                }
+                source={blockType === "Empty" ? require('./assets/question.png') : (plantImages[blockType] || require('./assets/question.png'))}
                 style={styles.plantImage}
               />
               <View style={styles.modalInputs}>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Enter name"
-                  value={blockName}
-                  onChangeText={setBlockName}
-                />
+                <TextInput style={styles.textInput} placeholder="Enter name" value={blockName} onChangeText={setBlockName} />
                 <Picker
                   selectedValue={blockType}
                   onValueChange={(itemValue) => setBlockType(itemValue)}
@@ -445,31 +436,13 @@ const styles = StyleSheet.create({
     marginTop: 40,
   },
   modalInputs: { flex: 1 },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 5,
-    padding: 15,
-    marginTop: 5,
-  },
+  textInput: { borderWidth: 1, borderColor: '#ccc', borderRadius: 5, padding: 15, marginTop: 5 },
   picker: { fontSize: 14, height: 150 },
-  dateTimeSection: {
-    marginVertical: 10,
-    borderTopWidth: 1,
-    borderColor: '#ccc',
-    paddingTop: 10,
-  },
+  dateTimeSection: { marginVertical: 10, borderTopWidth: 1, borderColor: '#ccc', paddingTop: 10 },
   dateTimeRow: { marginVertical: 5 },
-  infoSection: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 5,
-    padding: 5,
-    marginVertical: 10,
-  },
+  infoSection: { flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 5, padding: 5, marginVertical: 10 },
   infoText: { fontSize: 16 },
   modalButtonContainer: { marginTop: 10 },
 });
-
+  
 export default App;
