@@ -5,6 +5,7 @@ import { doc, getDoc, deleteDoc } from "firebase/firestore";
 import { db, auth } from "../../FirebaseConfig";
 import { onAuthStateChanged } from "firebase/auth";
 
+
 interface PinData {
   title: string;
   description: string;
