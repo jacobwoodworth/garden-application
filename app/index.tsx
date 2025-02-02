@@ -10,9 +10,8 @@ const App: React.FC = () => {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.container}>
-          {/* Add the image above the text */}
           <Image 
-            source={require('./IMG_0361.png')} // Replace 'photo.png' with your actual file name
+            source={require('./IMG_0361.png')} 
             style={styles.image}
           />
           <Text style={styles.title}>Welcome to Gnomeo!</Text>
