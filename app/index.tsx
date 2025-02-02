@@ -1,7 +1,7 @@
 // app.tsx
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Button, ScrollView, Text, View, StyleSheet } from 'react-native';
+import { Button, ScrollView, Text, View, StyleSheet, Image } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -10,10 +10,14 @@ const App: React.FC = () => {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.container}>
-          {/* Placeholder for logo can be added later if needed */}
-          <Text style={styles.title}>Welcome to Garden Gnome!</Text>
+          {/* Add the image above the text */}
+          <Image 
+            source={require('./IMG_0361.png')} // Replace 'photo.png' with your actual file name
+            style={styles.image}
+          />
+          <Text style={styles.title}>Welcome to Gnomeo!</Text>
           <Text style={styles.subtitle}>
-            An All-In-One Place For Every Day Gardening Needs
+            Connecting our community one plant at a time.
           </Text>
           <View style={styles.buttonContainer}>
             <Button 
@@ -34,7 +38,7 @@ export default App;
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: 'white'
+    backgroundColor: 'white',
   },
   scrollContainer: {
     flexGrow: 1,
@@ -46,6 +50,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: '85%',
+  },
+  image: {
+    width: 150,          // Adjust width as needed
+    height: 150,         // Adjust height as needed
+    resizeMode: 'contain',
+    marginBottom: 20,    // Spacing between the image and the title text
   },
   title: {
     fontSize: 28,

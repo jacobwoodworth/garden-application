@@ -17,7 +17,7 @@ export default function SignUpScreen() {
       if (user) {
         await updateProfile(user, { displayName: username });
         // On successful sign-up, navigate to the home screen
-        router.replace('/square');
+        router.replace('../map/index');
       }
     } catch (error: any) {
       alert(error.message);

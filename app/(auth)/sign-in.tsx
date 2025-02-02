@@ -13,7 +13,7 @@ export default function SignInScreen() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       // On successful sign in, navigate to the home screen
-      router.replace('/square');
+      router.replace('../map/index');
     } catch (error: any) {
       alert(error.message);
     }

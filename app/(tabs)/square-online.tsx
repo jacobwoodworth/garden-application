@@ -1,4 +1,6 @@
+// apps/(tabs)/square-online.tsx
 import React, { useState, useRef, useEffect } from 'react';
+import { router } from 'expo-router'; // Ensure you have this import at the top
 import {
   StyleSheet,
   View,
@@ -16,9 +18,14 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-
-
-// plant options
+import { useLocalSearchParams } from 'expo-router';
+ 
+// 1. Import Firestore references
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { Timestamp } from 'firebase/firestore';
+import { db } from '../../FirebaseConfig';
+ 
+// --------------------- Plant Options ---------------------
 const plantTypes = [
   "Empty",
   "Tomatoes",
@@ -37,6 +44,7 @@ const plantTypes = [
   "Basil",
   "Parsley"
 ];
+ 
 
 const plantImages: { [key: string]: any } = {
   Tomatoes: require('../../assets/tomatoes.png'),
@@ -55,39 +63,98 @@ const plantImages: { [key: string]: any } = {
   Basil: require('../../assets/basil.png'),
   Parsley: require('../../assets/parsley.png'),
 };
-
-// Modify GridCell to include plant data.
-interface GridCell {
-  isBlack: boolean;
-  plantType?: string;
-  plantName?: string;
-  datePlanted?: Date | null;
-  wateredDate?: Date | null;
-  harvestedDate?: Date | null;
+ 
+// --------------------- Types & Constants ---------------------
+export interface GridCell {
+  isBlack: boolean
+  plantType?: string | null
+  plantName?: string | null
+  datePlanted?: Date | null
+  wateredDate?: Date | null
+  harvestedDate?: Date | null
 }
-
-// Constants for grid dimensions and editor cell size
+ 
 const GRID_ROWS = 20;
 const GRID_COLS = 20;
 const EDITOR_CELL_SIZE = 80;
-
-const App: React.FC = () => {
-  const [editorMode, setEditorMode] = useState<boolean>(false);
-  
-  // Initialize grid with extra plant data (all cells start as not dirt)
-  const [grid, setGrid] = useState<GridCell[][]>(() =>
-    Array.from({ length: GRID_ROWS }, () =>
-      Array.from({ length: GRID_COLS }, () => ({
-        isBlack: false,
-        plantType: undefined,
-        plantName: undefined,
-        datePlanted: null,
-        wateredDate: null,
-        harvestedDate: null,
-      }))
-    )
+ 
+// Helper: Create an initial (empty) 2D grid in local state.
+const createInitialGrid = (): GridCell[][] =>
+  Array.from({ length: GRID_ROWS }, () =>
+    Array.from({ length: GRID_COLS }, () => ({
+      isBlack: false,
+      plantType: null,
+      plantName: null,
+      datePlanted: null,
+      wateredDate: null,
+      harvestedDate: null,
+    }))
   );
-  
+ 
+/**
+* 2. Flatten the 2D grid into a single array of objects.
+*    Firestore doesn't allow nested arrays, so we store each cell with row/col.
+*/
+function serializeGrid(grid: GridCell[][]): any[] {
+  const cells: any[] = [];
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      const cell = grid[r][c];
+      cells.push({
+        row: r,
+        col: c,
+        isBlack: cell.isBlack,
+        plantType: cell.plantType ?? null,
+        plantName: cell.plantName,
+        // Convert Date → Firestore Timestamp
+        datePlanted: cell.datePlanted ? Timestamp.fromDate(cell.datePlanted) : null,
+        wateredDate: cell.wateredDate ? Timestamp.fromDate(cell.wateredDate) : null,
+        harvestedDate: cell.harvestedDate ? Timestamp.fromDate(cell.harvestedDate) : null,
+      });
+    }
+  }
+  return cells;
+}
+ 
+/**
+* 3. Convert the flattened array back into a 2D grid.
+*/
+function deserializeGrid(cells: any[]): GridCell[][] {
+  // Start with an empty 2D grid
+  const newGrid = createInitialGrid();
+ 
+  for (let i = 0; i < cells.length; i++) {
+    const cellData = cells[i];
+    const r = cellData.row;
+    const c = cellData.col;
+ 
+    newGrid[r][c] = {
+      isBlack: cellData.isBlack,
+      plantType: cellData.plantType,
+      plantName: cellData.plantName,
+      datePlanted: cellData.datePlanted ? cellData.datePlanted.toDate() : null,
+      wateredDate: cellData.wateredDate ? cellData.wateredDate.toDate() : null,
+      harvestedDate: cellData.harvestedDate ? cellData.harvestedDate.toDate() : null,
+    };
+  }
+  return newGrid;
+}
+ 
+const App: React.FC = () => {
+  // Grab pinId from route
+  const { pinId } = useLocalSearchParams<{ pinId: string }>();
+  if (!pinId) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text>Error: No pin id provided.</Text>
+      </View>
+    );
+  }
+ 
+  // 4. Our local 2D grid state
+  const [grid, setGrid] = useState<GridCell[][] | null>(null);
+  const [editorMode, setEditorMode] = useState<boolean>(false);
+ 
   // For the block modal:
   const [selectedBlock, setSelectedBlock] = useState<{ row: number; col: number } | null>(null);
   const [blockName, setBlockName] = useState<string>("");
@@ -95,21 +162,91 @@ const App: React.FC = () => {
   const [datePlanted, setDatePlanted] = useState<Date | null>(null);
   const [wateredDate, setWateredDate] = useState<Date | null>(null);
   const [harvestedDate, setHarvestedDate] = useState<Date | null>(null);
-  
-  // Pan value and PanResponder for editor mode panning.
+ 
+  // Pan for editor mode
   const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => { pan.extractOffset(); },
+      onPanResponderGrant: () => {
+        pan.extractOffset();
+      },
       onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }], { useNativeDriver: false }),
-      onPanResponderRelease: () => { pan.flattenOffset(); },
+      onPanResponderRelease: () => {
+        pan.flattenOffset();
+      },
     })
   ).current;
-  
+ 
+  // --------------------- Firestore Grid Loading & Updating ---------------------
+  // Load the grid for this pin from Firestore
+  useEffect(() => {
+    const loadGrid = async () => {
+      try {
+        const gridDocRef = doc(db, "squares", pinId);
+        const gridSnap = await getDoc(gridDocRef);
+ 
+        if (gridSnap.exists()) {
+          console.log("Grid found in Firestore:", gridSnap.data());
+ 
+          // 5. Firestore now has { cells: [...] }
+          const loadedCells = gridSnap.data().cells;
+          if (loadedCells && Array.isArray(loadedCells)) {
+            const loadedGrid = deserializeGrid(loadedCells);
+            setGrid(loadedGrid);
+          } else {
+            // If "cells" missing for some reason, create new
+            const initialGrid = createInitialGrid();
+            await setDoc(gridDocRef, { cells: serializeGrid(initialGrid) });
+            setGrid(initialGrid);
+          }
+        } else {
+          // If no doc exists yet, create one
+          const initialGrid = createInitialGrid();
+          await setDoc(gridDocRef, { cells: serializeGrid(initialGrid) });
+          console.log("Created new grid in Firestore");
+          setGrid(initialGrid);
+        }
+      } catch (error) {
+        console.error("Error loading grid:", error);
+      }
+    };
+    loadGrid();
+  }, [pinId]);
+ 
+  // Update Firestore whenever we change the grid
+  const updateGrid = async (newGrid: GridCell[][]) => {
+    setGrid(newGrid);
+    try {
+      // 6. Store as "cells" (flattened array)
+      await setDoc(
+        doc(db, "squares", pinId),
+        { cells: serializeGrid(newGrid) },
+        { merge: true }
+      );
+      console.log("Grid updated in Firestore");
+    } catch (error) {
+      console.error("Error updating grid:", error);
+    }
+  };
+ 
+  // --------------------- Utility Functions ---------------------
   const computeEditorRegion = () => {
-    let minRow = GRID_ROWS, maxRow = -1, minCol = GRID_COLS, maxCol = -1;
+    if (!grid) {
+      // If grid not loaded yet, just return a default region
+      return {
+        startRow: 0,
+        endRow: 1,
+        startCol: 0,
+        endCol: 1,
+      };
+    }
+    let minRow = GRID_ROWS,
+      maxRow = -1,
+      minCol = GRID_COLS,
+      maxCol = -1;
     let hasBlack = false;
+ 
     for (let r = 0; r < GRID_ROWS; r++) {
       for (let c = 0; c < GRID_COLS; c++) {
         if (grid[r][c].isBlack) {
@@ -121,6 +258,7 @@ const App: React.FC = () => {
         }
       }
     }
+ 
     if (!hasBlack) {
       const centerRow = Math.floor(GRID_ROWS / 2);
       const centerCol = Math.floor(GRID_COLS / 2);
@@ -139,16 +277,17 @@ const App: React.FC = () => {
       };
     }
   };
-  
+ 
+  // Toggle black/grass cell
   const toggleCell = (r: number, c: number) => {
-    if (r < 0 || r >= GRID_ROWS || c < 0 || c >= GRID_COLS) return;
+    if (!grid || r < 0 || r >= GRID_ROWS || c < 0 || c >= GRID_COLS) return;
     const newGrid = grid.map((row, rowIndex) =>
       row.map((cell, colIndex) => {
         if (rowIndex === r && colIndex === c) {
           return {
             isBlack: !cell.isBlack,
-            plantType: !cell.isBlack ? "empty" : undefined,
-            plantName: !cell.isBlack ? "" : undefined,
+            plantType: !cell.isBlack ? "empty" : null,
+            plantName: !cell.isBlack ? "" : null,
             datePlanted: null,
             wateredDate: null,
             harvestedDate: null,
@@ -157,11 +296,12 @@ const App: React.FC = () => {
         return cell;
       })
     );
-    setGrid(newGrid);
+    updateGrid(newGrid);
   };
-  
+ 
+  // Center the editor region in the viewport
   useEffect(() => {
-    if (editorMode) {
+    if (editorMode && grid) {
       const region = computeEditorRegion();
       const numRows = region.endRow - region.startRow + 1;
       const numCols = region.endCol - region.startCol + 1;
@@ -172,9 +312,11 @@ const App: React.FC = () => {
       const centerY = (windowHeight - regionHeight) / 2;
       pan.setValue({ x: centerX, y: centerY });
     }
-  }, [editorMode]);
-  
+  }, [editorMode, grid]);
+ 
+  // Block details
   const openBlockScreen = (row: number, col: number) => {
+    if (!grid) return;
     setSelectedBlock({ row, col });
     const cell = grid[row][col];
     setBlockName(cell.plantName || "");
@@ -183,17 +325,17 @@ const App: React.FC = () => {
     setWateredDate(cell.wateredDate || null);
     setHarvestedDate(cell.harvestedDate || null);
   };
-  
+ 
   const closeBlockScreen = () => {
-    if (selectedBlock) {
+    if (selectedBlock && grid) {
       const { row, col } = selectedBlock;
       const newGrid = grid.map((gridRow, rowIndex) =>
         gridRow.map((cell, colIndex) => {
           if (rowIndex === row && colIndex === col) {
             return {
               ...cell,
-              plantName: blockType === "Empty" ? undefined : blockName,
-              plantType: blockType === "Empty" ? undefined : blockType,
+              plantName: blockType === "Empty" ? null : blockName,
+              plantType: blockType === "Empty" ? null : blockType,
               datePlanted: blockType === "Empty" ? null : datePlanted,
               wateredDate: blockType === "Empty" ? null : wateredDate,
               harvestedDate: blockType === "Empty" ? null : harvestedDate,
@@ -202,19 +344,23 @@ const App: React.FC = () => {
           return cell;
         })
       );
-      setGrid(newGrid);
+      updateGrid(newGrid);
     }
     setSelectedBlock(null);
   };
-  
+ 
   // --------------------- Render Editor Mode ---------------------
   const renderEditorMode = () => {
+    if (!grid) return null;
     const region = computeEditorRegion();
     const numRows = region.endRow - region.startRow + 1;
     const numCols = region.endCol - region.startCol + 1;
+ 
     return (
-      // Wrap editor mode in an ImageBackground for the editor background
-      <ImageBackground source={require('../../assets/dirt.png')} style={styles.editorContainer}>
+      <ImageBackground
+        source={require('../../assets/dirt.png')}
+        style={styles.editorContainer}
+      >
         <Animated.View
           style={[
             {
@@ -230,14 +376,16 @@ const App: React.FC = () => {
           {Array.from({ length: numRows }).map((_, rowOffset) => {
             const r = region.startRow + rowOffset;
             return (
-            
               <View key={`row-${r}`} style={{ flexDirection: 'row' }}>
                 {Array.from({ length: numCols }).map((_, colOffset) => {
                   const c = region.startCol + colOffset;
                   const isValid = r >= 0 && r < GRID_ROWS && c >= 0 && c < GRID_COLS;
                   const isBlack = isValid ? grid[r][c].isBlack : false;
                   return (
-                    <TouchableOpacity key={`cell-${r}-${c}`} onPress={() => toggleCell(r, c)}>
+                    <TouchableOpacity
+                      key={`cell-${r}-${c}`}
+                      onPress={() => toggleCell(r, c)}
+                    >
                       <Image
                         source={
                           isBlack
@@ -253,15 +401,17 @@ const App: React.FC = () => {
             );
           })}
         </Animated.View>
+ 
         <View style={styles.editorButtonContainer}>
-          <Button title="Exit Editor" onPress={() => setEditorMode(false)} />
+          <Button title="Save Plot" onPress={() => setEditorMode(false)} />
         </View>
       </ImageBackground>
     );
   };
-  
+ 
   // --------------------- Render Garden (Main) View ---------------------
   const renderGardenView = () => {
+    if (!grid) return null;
     const { width: windowWidth, height: windowHeight } = Dimensions.get('window');
     const { startRow, endRow, startCol, endCol } = computeEditorRegion();
     const numRows = endRow - startRow + 1;
@@ -269,10 +419,12 @@ const App: React.FC = () => {
     const cellSize = Math.min(windowWidth / numCols, windowHeight / numRows);
     const containerWidth = cellSize * numCols;
     const containerHeight = cellSize * numRows;
-
+ 
     return (
-      // Wrap main view in an ImageBackground for the main background.
-      <ImageBackground source={require('../../assets/dirt.png')} style={[styles.gardenContainer, { width: windowWidth, height: windowHeight }]}>
+      <ImageBackground
+        source={require('../../assets/dirt.png')}
+        style={[styles.gardenContainer, { width: windowWidth, height: windowHeight }]}
+      >
         <View
           style={{
             width: containerWidth,
@@ -322,13 +474,19 @@ const App: React.FC = () => {
             })
           )}
         </View>
+ 
         <View style={styles.gardenButtonContainer}>
           <Button title="Edit Layout" onPress={() => setEditorMode(true)} />
+        </View>
+        <View style={styles.returnToMap}>
+          <Button title="Exit"onPress={() => {
+      router.push('../maps/rindex.tsx'); // Assuming your file is 'index.tsx'
+    } } />
         </View>
       </ImageBackground>
     );
   };
-  
+ 
   // --------------------- Render Block Modal Screen ---------------------
   const renderBlockModal = () => {
     return (
@@ -432,7 +590,18 @@ const App: React.FC = () => {
       </View>
     );
   }
-   
+ 
+ 
+  // --------------------- Main Render ---------------------
+  if (!grid) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" />
+        <Text>Loading plot...</Text>
+      </View>
+    );
+  }
+ 
   return (
     <View style={styles.container}>
       {editorMode ? renderEditorMode() : renderGardenView()}
@@ -440,23 +609,38 @@ const App: React.FC = () => {
     </View>
   );
 };
-  
+ 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   editorContainer: { flex: 1 },
   gardenContainer: { justifyContent: 'center', alignItems: 'center' },
   editorButtonContainer: {
     position: 'absolute',
-    top: 40,
-    left: 20,
-    padding: 5,
-    backgroundColor: 'rgba(255,255,255,0.8)',
-    borderRadius: 4,
+    top: 50,
+    right: 30,
+    padding: 10,
+    backgroundColor: 'rgba(62, 36, 209, 0.9)',
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#4CAF50',
+    alignItems: 'center',
   },
   gardenButtonContainer: {
     position: 'absolute',
     top: 50,
     right: 30,
+    padding: 10,
+    backgroundColor: 'rgba(62, 36, 209, 0.9)',
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#4CAF50',
+    alignItems: 'center',
+  },
+  returnToMap: {
+    position: 'absolute',
+    top: 50,
+    left: 30,
     padding: 10,
     backgroundColor: 'rgba(62, 36, 209, 0.9)',
     borderRadius: 8,
@@ -490,12 +674,19 @@ const styles = StyleSheet.create({
   },
   modalInputs: { flex: 1 },
   textInput: { borderWidth: 1, borderColor: '#ccc', borderRadius: 5, padding: 15, marginTop: 5 },
-  picker: { fontSize: 14, height: 150},
+  picker: { fontSize: 14, height: 150 },
   dateTimeSection: { marginVertical: 10, borderTopWidth: 1, borderColor: '#ccc', paddingTop: 10 },
   dateTimeRow: { marginVertical: 5 },
-  infoSection: { flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 5, padding: 5, marginVertical: 10 },
+  infoSection: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    padding: 5,
+    marginVertical: 10,
+  },
   infoText: { fontSize: 16 },
   modalButtonContainer: { marginTop: 10 },
 });
-  
+ 
 export default App;
