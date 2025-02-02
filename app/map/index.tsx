@@ -6,6 +6,7 @@ import { collection, getDocs, addDoc } from "firebase/firestore";
 import { db, auth } from "../../FirebaseConfig";
 import { onAuthStateChanged } from "firebase/auth";
 import * as Location from "expo-location";
+import Layout from "../(tabs)/layout";
 
 // Define your pin type.
 interface PinData {
