@@ -15,18 +15,7 @@ import {
   Modal,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { getFirestore, doc, setDoc } from "firebase/firestore";
-import { collection, onSnapshot } from "firebase/firestore";
-import { db } from '../../FirebaseConfig';
 
-interface GridCell {
-    isBlack: boolean;
-    plantType?: string;
-    plantName?: string;
-    datePlanted?: Date | null;
-    wateredDate?: Date | null;
-    harvestedDate?: Date | null;
-    }
 // plant options
 const plantTypes = [
   "Empty",

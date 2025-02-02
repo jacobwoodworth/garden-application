@@ -42,6 +42,7 @@ export default function PinDetailScreen() {
         const docRef = doc(db, "pins", pinId);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
+          router.push("/square");
           setPin(docSnap.data() as PinData);
         } else {
           router.push("/map");
