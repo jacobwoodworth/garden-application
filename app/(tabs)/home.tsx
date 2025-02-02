@@ -13,6 +13,9 @@ export default function HomeScreen() {
       <Link href="/map/index" style={styles.link}>
         Go to Map
       </Link>
+      <Link href="/(tabs)/square" style={styles.link}>
+        Go to Square
+      </Link>
     </View>
   );
 }
