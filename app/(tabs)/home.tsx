@@ -10,10 +10,10 @@ export default function HomeScreen() {
       <Text style={styles.title}>Welcome to the Home Screen!</Text>
 
       {/* If you want an inline button to go to the Map tab */}
-      <Link href="/map/index" style={styles.link}>
+      <Link href="/map/index">
         Go to Map
       </Link>
-      <Link href="/(tabs)/square" style={styles.link}>
+      <Link href="/(tabs)/square">
         Go to Square
       </Link>
     </View>

@@ -15,6 +15,9 @@ import {
   Modal,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
+import { useLocalSearchParams } from "expo-router";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { db } from "../../FirebaseConfig";
 
 // plant options
 const plantTypes = [
