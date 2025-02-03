@@ -51,8 +51,8 @@ const styles = StyleSheet.create({
     minHeight: '85%',
   },
   image: {
-    width: 150,          // Adjust width as needed
-    height: 150,         // Adjust height as needed
+    width: 150,          
+    height: 150,         
     resizeMode: 'contain',
     marginBottom: 20,    // Spacing between the image and the title text
   },
